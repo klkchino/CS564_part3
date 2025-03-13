@@ -1,3 +1,9 @@
+/*
+Oscar Zapata - 908 440 2404
+Shamita
+Jerry
+*/
+
 #include <memory.h>
 #include <unistd.h>
 #include <errno.h>
@@ -62,25 +68,93 @@ BufMgr::~BufMgr() {
     delete [] bufPool;
 }
 
-
+/*
+ * [NOT GIVEN METHOD] This method finds a frame number to allocate into.
+ * @param frame the frame number that is available for allocation
+ * @return OK if no errors encountred,UNIXERR if problem encountred writing page, BUFFEREXCEEDED if no frames have pinCnt of 0
+ */
 const Status BufMgr::allocBuf(int & frame) 
 {
+    int iterations = 0;
 
+    // search for unused frame
+    while(iterations < numBufs * 2) {
+        clockHand = (clockHand + 1) % numBufs;
+        BufDesc &frameDesc = bufTable[clockHand];
 
+        // if found invalid frame
+        if(!frameDesc.valid) {
+            frameDesc.Set(nullptr, -1);
+            frame = clockHand;
+            return OK;
+        }
 
+        if(frameDesc.pinCnt == 0) {
+            // Found pin count 0 but refbit is true
+            if(frameDesc.refbit) {
+                frameDesc.refbit = 0;
+            }
+            else {
+                // if dirty, write to disk
+                if(frameDesc.dirty) {
+                    Status status = frameDesc.file->writePage(frameDesc.pageNo,&bufPool[clockHand]);
+                    if(status != OK) {
+                        return UNIXERR;
+                    }
+                    frameDesc.dirty = 0;
+                }
 
-
-
+                hashTable->remove(frameDesc.file,frameDesc.pageNo);
+                frameDesc.Set(nullptr, -1);
+                frame = clockHand;
+                return OK;
+            }
+        }
+        iterations++;
+    }
+    return BUFFEREXCEEDED;
 }
 
-	
+/*
+ * [NOT GIVEN METHOD] This method reads a page from memory or I/O.
+ * @param file the file this page belongs to
+ * @param PageNo page number of this given page
+ * @param page actual page object that has been read from storage
+ * @return OK if no errors, UNIXERR if problem reading pge, HASHTBLERROR if problem inserting page, BUFFEREXCEEDED if no available frames
+ */
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
+    int frameNo;
+    Status status = hashTable->lookup(file,PageNo,frameNo);
+    // Case 1 page not in buffer pool
+    if(status == HASHNOTFOUND) {
+        Status allocStatus = allocBuf(frameNo);
+        if(allocStatus != OK) return allocStatus;
 
+        //Read page from disk into the buffer pool frame
+        Status readStatus = file->readPage(PageNo, &bufPool[frameNo]);
+        if(readStatus != OK) return UNIXERR;
+        
+        // Insert page into hashtable
+        Status insertStatus = hashTable->insert(file,PageNo,frameNo);
+        if(insertStatus != OK) return HASHTBLERROR;
 
+        bufTable[frameNo].Set(file,PageNo);
+        bufTable[frameNo].pinCnt = 1;
 
+        page = &bufPool[frameNo];
 
+        return OK;
+    }
 
+    // Case 2 page is in buffer pool
+    else {
+        bufTable[frameNo].refbit = 1;
+        bufTable[frameNo].pinCnt++;
+        page = &bufPool[frameNo];
+
+        return OK;
+    }
 }
 
 
