@@ -195,14 +195,48 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
     
 }
 
+/*
+ * [NOT GIVEN METHOD] This method allocates a page depending on the input. 
+ * @param file the file this page belongs to
+ * @param pageNo page number of this given page
+ * @param page actual page object that has been read from storage
+ * @return OK if no errors occurred, UNIXERR if a Unix error occurred, BUFFEREXCEEDED if 
+ * all buffer frames are pinned and HASHTBLERROR if a hash table error occurred
+*/
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
-{
+{ 
+    //allocate an empty page in the specified file by invoking this method, will return the page number of the newly allocated page
+    int num = file->allocatePage(pageNo)
 
+    // allocBuf() is called to obtain a buffer pool frame
+    int frameNo = 0;
+    Status bufStatus = allocBuf(frameNo)
 
+    //returns BUFFEREXCEEDED if all buffer frames are pinned
+    if (bufStatus == BUFFEREXCEEDED)
+    {
+        return BUFFEREXCEEDED;
+    }
+    //returns UNIXERR if a Unix error occurred
+    if (bufStatus == UNIXERR)
+    {
+        return UNIXERR;
+    }
 
+    //an entry is inserted into the hash table and Set() is invoked on the frame to set it up properly
+    //the method returns both the page number of the newly allocated page to the caller 
+    //via the pageNo parameter and a pointer to the buffer frame allocated for the page via the page parameter.
+    bufTable[frameNo].Set(file, pageNo);
+    page = &bufPool[frameNo];
 
+    Status insertStatus = hashTable->insert(file, pageNo, frameNo);
+    //returns HASHTBLERROR if a hash table error occurred
+    if (insertStatus == HASHTBLERROR)
+    {
+        return HASHTBLERROR;
+    }
 
-
+    return OK;
 
 }
 
