@@ -158,14 +158,41 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 }
 
 
+/*
+ * [NOT GIVEN METHOD] This method decrements pin count and returns status. 
+ * @param file the file this page belongs to
+ * @param PageNo page number of this given page
+ * @param bool dirty status of corresponding frame
+ * @return OK if no errors, PAGENOTPINNED if the pin count is already 0, HASHNOTFOUND if the page is not in the buffer pool hash table
+*/
 const Status BufMgr::unPinPage(File* file, const int PageNo, 
 			       const bool dirty) 
 {
+    //Finds frame and checks corresponding status
+    int frameNo = 0;
+    Status returnStatus = hashTable->lookup(file, PageNo, frameNo);
 
+    //Returns PAGENOTPINNED if the pin count is already 0.
+    if (bufTable[frameNo].pinCnt == 0)
+    {
+        return PAGENOTPINNED;
+    }
 
+    //Returns HASHNOTFOUND if the page is not in the buffer pool hash table
+    if (returnStatus == HASHNOTFOUND)
+    {
+        return HASHNOTFOUND
+    }
 
-
-
+    //Decrements the pinCnt of the frame containing (file, PageNo) and, if dirty == true, sets the dirty bit.
+    bufTable[frameNo].pinCnt--;
+    if (dirty == true)
+    {
+        bufTable[frame].dirty = true;
+    }
+    //Returns OK if no errors occurred
+    return OK;
+    
 }
 
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
