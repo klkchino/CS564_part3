@@ -181,14 +181,14 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
     //Returns HASHNOTFOUND if the page is not in the buffer pool hash table
     if (returnStatus == HASHNOTFOUND)
     {
-        return HASHNOTFOUND
+        return HASHNOTFOUND;
     }
 
     //Decrements the pinCnt of the frame containing (file, PageNo) and, if dirty == true, sets the dirty bit.
     bufTable[frameNo].pinCnt--;
     if (dirty == true)
     {
-        bufTable[frame].dirty = true;
+        bufTable[frameNo].dirty = true;
     }
     //Returns OK if no errors occurred
     return OK;
@@ -206,11 +206,15 @@ const Status BufMgr::unPinPage(File* file, const int PageNo,
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 { 
     //allocate an empty page in the specified file by invoking this method, will return the page number of the newly allocated page
-    int num = file->allocatePage(pageNo)
+    Status pageStatus = file->allocatePage(pageNo);
+    if (pageStatus != OK)
+    {
+        return pageStatus;
+    }
 
     // allocBuf() is called to obtain a buffer pool frame
     int frameNo = 0;
-    Status bufStatus = allocBuf(frameNo)
+    Status bufStatus = allocBuf(frameNo);
 
     //returns BUFFEREXCEEDED if all buffer frames are pinned
     if (bufStatus == BUFFEREXCEEDED)
