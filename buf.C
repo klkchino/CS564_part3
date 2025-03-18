@@ -84,7 +84,7 @@ const Status BufMgr::allocBuf(int & frame)
 
         // if found invalid frame
         if(!frameDesc.valid) {
-            frameDesc.Set(nullptr, -1);
+            frameDesc.Clear();
             frame = clockHand;
             return OK;
         }
@@ -105,7 +105,7 @@ const Status BufMgr::allocBuf(int & frame)
                 }
 
                 hashTable->remove(frameDesc.file,frameDesc.pageNo);
-                frameDesc.Set(nullptr, -1);
+                frameDesc.Clear();
                 frame = clockHand;
                 return OK;
             }
